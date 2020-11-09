@@ -466,6 +466,7 @@ class BookSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    # this field is added to the User Meta fields below
     books = BookSerializer(read_only=True, many=True)
 
     class Meta:
@@ -476,3 +477,28 @@ class UserSerializer(serializers.ModelSerializer):
 ```
 
 Go to http://127.0.0.1:8000/api/users/ and see that books is now in the user field
+```json
+[
+    {
+        "id": 1,
+        "username": "brock",
+        "books": [
+            {
+                "user": 1,
+                "title": "Code",
+                "author": "Rumplestillskin"
+            }
+        ]
+    },
+    {
+        "id": 3,
+        "username": "brock1",
+        "books": []
+    },
+    {
+        "id": 4,
+        "username": "brock3",
+        "books": []
+    }
+]
+```
