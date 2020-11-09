@@ -502,3 +502,40 @@ Go to http://127.0.0.1:8000/api/users/ and see that books is now in the user fie
     }
 ]
 ```
+
+## Cross Origin Resource Sharing (CORS)
+
+This allows your backend to communicate with your front-end by allowing specific domains. 
+
+1. add `'corsheaders'` to `INSTALLED_APPS` and `'corsheaders.middleware.CorsMiddleware'` to `MIDDLEWARE` and `CORS_ORIGIN_ALLOW_ALL = True` to the ``settings.py` file
+
+```py
+INSTALLED_APPS = [
+    'corsheaders',
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
+    'api',
+]
+CORS_ORIGIN_ALLOW_ALL = True
+
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+CORS_ORIGIN_ALLOW_ALL = True
+```
+
+Your frontend server should now be able to communicate with Django.
