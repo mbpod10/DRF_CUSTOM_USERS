@@ -196,8 +196,7 @@ It will look like this:
 #### Postman
 go to Postman, select `POST` request and go to `BODY` then `form-data` and insert the following:
 
-|      Key | Value     |
-
+|   Key    | Value     |
 | username | brock2    | 
 | password | password1 | 
 
@@ -303,3 +302,88 @@ class UserViewSet(viewsets.ModelViewSet):
                    'user': serializer.data, 'token': token.key}
         return Response(message, status=status.HTTP_200_OK)
 ```
+
+Now, create a new user with a unique username, the response should be something like this:
+```json
+{
+    "message": "User Created",
+    "user": {
+        "id": 3,
+        "username": "brock1"
+    },
+    "token": "11b5047df0925e16d2b4c814b08eb13e67beea05"
+}
+```
+
+## Password Specific 
+
+We can create logic similar to what we have already to send messages that passwords are not strong enough or long enough. As long as you know how to extract the body of the request, the variations are endless. Let's just send a message that the password is not long enough. This is within the register method still
+
+```py
+    if len(password) < 8:
+        message = {'message': "Password Must Be Longer Than 8 Characters"}
+        return Response(message, status=status.HTTP_200_OK)
+```
+Enter a password that is less than 8 characters long, the response:
+
+```json
+{
+    "message": "Password Must Be Longer Than 8 Characters"
+}
+```
+
+## Login
+
+Now that we have created user, we need to allow us to login. 
+
+This is similar to register but it includes a built in Django method called `authenticate()` This will allow us to compare usernames with passwords. 
+
+Also, if there is no user, we want to send a message back to the client saying that credentials are invalid. We don't want to specify if its the wrong username or password due to security risks. We will call this method `login` and its on the same level as `register`. 
+
+Therefore, endpoint for this method will be http://127.0.0.1:8000/api/users/login/ as a POST request
+
+1. Extract the username and password
+2. If username and password exist, create a variable user and authenticate
+3. If no user variable exists (invalid username or pass), send a message of invalid credentials
+4. If there is a user, serialize the user object and many to false
+5. Query the token associated with that user
+6. Create a response that sends a message, the user data, and the unique token of the user
+7. Return the message and the HTTP status
+
+```py
+    @action(detail=False, methods=['POST'])
+    def login(self, request):
+
+        username = request.data['username']
+        password = request.data['password']
+
+        if username and password:
+            user = authenticate(username=username, password=password)
+
+            if not user:
+                message = {'message': 'Invalid Password or Username.'}
+                return Response(message, status=status.HTTP_200_OK)
+
+            serializer = UserSerializer(user, many=False)
+            token = Token.objects.get(user=user)
+            message = {'message': 'LOGGED_IN',
+                       'user': serializer.data, 'token': token.key}
+            return Response(message, status=status.HTTP_200_OK)
+
+```
+
+At the endpoint http://127.0.0.1:8000/api/users/login/ as a POST request, enter the valid password and username of an existing user in Postman
+
+Reponse:
+
+```json
+{
+    "message": "LOGGED_IN",
+    "user": {
+        "id": 1,
+        "username": "brock"
+    },
+    "token": "28474bb92ffb01fbc8a1874cf6ecc8c11cdadda7"
+}
+```
+<b>You may need to go to http://127.0.0.1:8000/admin/authtoken/tokenproxy/ and add a token to the superuser if you are getting an error. There was no token created when we initially created the superuser</b>

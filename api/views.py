@@ -20,13 +20,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
         username = request.data['username']
         password = request.data['password']
-        # email = request.data['email']
-        # first_name = request.data['first_name']
-        # last_name = request.data['last_name']
-
-        # if not username or not password or not email or not last_name:
-        #     message = {'message': "Please Enter All Valid Fields"}
-        #     return Response(message, status=status.HTTP_200_OK)
 
         search_username = User.objects.filter(username=username)
 
@@ -34,13 +27,9 @@ class UserViewSet(viewsets.ModelViewSet):
             message = {'message': "Username Already Exists"}
             return Response(message, status=status.HTTP_200_OK)
 
-        # if len(password) < 8:
-        #     message = {'message': "Password Must Be Longer Than 8 Characters"}
-        #     return Response(message, status=status.HTTP_200_OK)
-
-        # if "@" not in email or ".com" not in email:
-        #     message = {'message': "Enter A Valid Email"}
-        #     return Response(message, status=status.HTTP_200_OK)
+        if len(password) < 8:
+            message = {'message': "Password Must Be Longer Than 8 Characters"}
+            return Response(message, status=status.HTTP_200_OK)
 
         user = User.objects.create_user(
             username=username, password=password)
@@ -49,3 +38,22 @@ class UserViewSet(viewsets.ModelViewSet):
         message = {'message': "User Created",
                    'user': serializer.data, 'token': token.key}
         return Response(message, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['POST'])
+    def login(self, request):
+
+        username = request.data['username']
+        password = request.data['password']
+
+        if username and password:
+            user = authenticate(username=username, password=password)
+
+            if not user:
+                message = {'message': 'Invalid Password or Username.'}
+                return Response(message, status=status.HTTP_200_OK)
+
+            serializer = UserSerializer(user, many=False)
+            token = Token.objects.get(user=user)
+            message = {'message': 'LOGGED_IN',
+                       'user': serializer.data, 'token': token.key}
+            return Response(message, status=status.HTTP_200_OK)
