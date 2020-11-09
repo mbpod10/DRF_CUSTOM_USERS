@@ -87,7 +87,7 @@ class UserSerializer(serializers.ModelSerializer):
 ```
 
 ### 2. Create UserViewSet
-- in `api/views` we need to import viewsets from restframework: `from rest_framework import viewsets`
+- in `api/views` we need to import viewsets from restframework: `from rest_framework import viewsets` and the serializer we just made `from .serializers import UserSerializer`
 - create a class `UserViewSet`
   - This will show the whole list of Users and comes with full CRUD functionality
     - WE WILL REVISIT THIS
@@ -95,6 +95,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 ```py
 from rest_framework import viewsets
+from .serializers import UserSerializer
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -342,7 +343,7 @@ Also, if there is no user, we want to send a message back to the client saying t
 
 Therefore, endpoint for this method will be http://127.0.0.1:8000/api/users/login/ as a POST request
 
-1. Extract the username and password
+1. Extract the username and password from request
 2. If username and password exist, create a variable user and authenticate
 3. If no user variable exists (invalid username or pass), send a message of invalid credentials
 4. If there is a user, serialize the user object and many to false
@@ -387,3 +388,40 @@ Reponse:
 }
 ```
 <b>You may need to go to http://127.0.0.1:8000/admin/authtoken/tokenproxy/ and add a token to the superuser if you are getting an error. There was no token created when we initially created the superuser</b>
+
+## Change Password
+
+This is also similar but we are going to be using some different methods
+
+1. declare change_password function and have `@action` as PUT
+2. get password, and username from the body request
+3. make sure the new password is more than 7 characters
+4. get the user that with the username that wishes to change password
+5. apply `user.set_password(password)` to the user
+6. save the user
+7. once again, get the token associated with that user
+8. created a message that the password was created successfully
+9. return the message with HHTP status
+
+```py
+@action(detail=False, methods=['PUT'])
+    def change_password(self, request, pk='username'):
+        password = request.data['password']
+        username = request.data['username']
+
+        if len(password) < 8:
+            message = {'message': "Password Must Be Longer Than 8 Characters"}
+            return Response(message, status=status.HTTP_200_OK)
+
+        user = User.objects.get(username=username)
+        user.set_password(password)
+        user.save()
+        token = Token.objects.get(user=user)
+        message = {'message': "Password Successfully Changed",
+                   'token': token.key}
+        return Response(message, status=status.HTTP_200_OK)
+```
+
+<b>NOTE</b>: the endpoint is http://127.0.0.1:8000/api/users/change_password/ and the Postman request is PUT
+
+Try to change the password and then try to login with the old password, then the new password

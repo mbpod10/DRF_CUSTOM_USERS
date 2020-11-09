@@ -57,3 +57,20 @@ class UserViewSet(viewsets.ModelViewSet):
             message = {'message': 'LOGGED_IN',
                        'user': serializer.data, 'token': token.key}
             return Response(message, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['PUT'])
+    def change_password(self, request, pk='username'):
+        password = request.data['password']
+        username = request.data['username']
+
+        if len(password) < 8:
+            message = {'message': "Password Must Be Longer Than 8 Characters"}
+            return Response(message, status=status.HTTP_200_OK)
+
+        user = User.objects.get(username=username)
+        user.set_password(password)
+        user.save()
+        token = Token.objects.get(user=user)
+        message = {'message': "Password Successfully Changed",
+                   'token': token.key}
+        return Response(message, status=status.HTTP_200_OK)
