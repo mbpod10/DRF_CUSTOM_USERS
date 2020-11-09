@@ -393,7 +393,7 @@ Reponse:
 
 This is also similar but we are going to be using some different methods
 
-1. declare change_password function and have `@action` as PUT
+1. declare `change_password` function and have `@action` as PUT
 2. get password, and username from the body request
 3. make sure the new password is more than 7 characters
 4. get the user that with the username that wishes to change password
@@ -401,7 +401,7 @@ This is also similar but we are going to be using some different methods
 6. save the user
 7. once again, get the token associated with that user
 8. created a message that the password was created successfully
-9. return the message with HHTP status
+9. return the message with HTTP status
 
 ```py
 @action(detail=False, methods=['PUT'])
@@ -424,4 +424,55 @@ This is also similar but we are going to be using some different methods
 
 <b>NOTE</b>: the endpoint is http://127.0.0.1:8000/api/users/change_password/ and the Postman request is PUT
 
-Try to change the password and then try to login with the old password, then the new password
+Try to change the password of an existing user and then try to login with the old password, then the new password
+
+## Nested User Models With Related Models
+
+We want to attach a seperate model to the user model so we have data whenever we get the user object client side. 
+
+1. Create New Model Called Book in `models.py`
+2. Create a foreignkey to the User and add a related_name field that will be added to User Model
+3. Create Book Serializer in `serializers.py`
+4. add books field to UserSerializer
+5. add 'books' to User field
+
+```py
+#api/models.py
+from django.db import models
+from django.contrib.auth.models import User
+
+class Book(models.Model):
+    user = models.ForeignKey(User, related_name='books',
+                             on_delete=models.CASCADE)
+    title = models.CharField(max_length=256)
+    author = models.CharField(max_length=256)
+
+    def __str__(self):
+        return self.title
+
+```
+
+```py
+#api/serializers.py
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from .models import Book
+
+
+class BookSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Book
+        fields = ('user', 'title', 'author')
+
+
+class UserSerializer(serializers.ModelSerializer):
+    books = BookSerializer(read_only=True, many=True)
+
+    class Meta:
+        model = User
+
+        fields = ('id', 'username', 'password', 'books')
+        extra_kwargs = {'password': {'write_only': True, 'required': True}}
+```
+
+Go to http://127.0.0.1:8000/api/users/ and see that books is now in the user field

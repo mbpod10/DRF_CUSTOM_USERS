@@ -54,6 +54,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
             serializer = UserSerializer(user, many=False)
             token = Token.objects.get(user=user)
+            print(user.books)
             message = {'message': 'LOGGED_IN',
                        'user': serializer.data, 'token': token.key}
             return Response(message, status=status.HTTP_200_OK)
