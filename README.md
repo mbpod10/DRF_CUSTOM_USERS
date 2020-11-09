@@ -50,7 +50,9 @@ Now, create a `urls.py` file in `/api` and in the file, we will deal with this l
 
 ### 1. Create User Serializers
 - Create a `serializers.py` file in `/api`
-- We will import the Django Default User Model by `from django.contrib.auth.models import User`, this model comes with built-in fields that we can choose to return to the client when we return the user. The fields are as follows: 
+- We will import the Django Default User Model by `from django.contrib.auth.models import User`, this model comes with built-in fields that we can choose to return to the client when we return the user. 
+
+The fields are as follows: 
 ```json
 {
         "id": 1,
@@ -143,13 +145,161 @@ Go to http://127.0.0.1:8000/admin/auth/user/ and create a new user. Then in Post
 - ENDPOINTS FOR CRUD:
 ```
 CREATE NEW USER: http://127.0.0.1:8000/api/users/
+RETRIEVE ALL USERS: http://127.0.0.1:8000/api/users/
 RETRIEVE USER: http://127.0.0.1:8000/api/users/2/
 UPDATE USER: http://127.0.0.1:8000/api/users/2/
 DELETE USER: http://127.0.0.1:8000/api/users/2/
 ```
 
-## Custom Login Functionality
+## Custom User Functionality
 
-First and foremost, the UserViewSet allows us to make custome url endpoints using function names. So within our UserViewSet, we can name a function `login`, and it will us to do some logic through the endpoint http://127.0.0.1:8000/api/users/login/ client-side. 
+First and foremost, the UserViewSet allows us to make custom url endpoints using function names. So within our UserViewSet, we can name a function `login`, and it will allow us to do some logic through the endpoint http://127.0.0.1:8000/api/users/login/ client-side and we can specify the type of request for that particular endpoint. 
 
-Also, we need to import various modules from django and rest_framework. Most important is the Token from restframework models. This a unique token for a user that will allow client-side authorization. 
+Also, we need to import various modules from django and rest_framework. Most important is the Token from rest_framework models. This a unique token for a user that will allow client-side authorization and this need to be created whenever a new user registers. 
+
+<b>The purpose of custom user urls is to allow us to dictate how the backend communicates with the client. We want to be in control of how that works and control the logic of how we would like our users to register/login/authenticate</b>
+
+We will discuss the imports as we go. They are as follows:
+
+```py
+from django.shortcuts import render
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from .serializers import UserSerializer
+from django.contrib.auth.models import User
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authtoken.models import Token
+from django.contrib.auth import authenticate
+```
+
+## Register
+Lets make a method called `register` that will allow us to create a new user. 
+
+First, we need to create it with an `@action` decorator that will dictate that only POST requests are allowed at the `register` endpoint. SO WHENEVER A CLIENT GOES TO http://127.0.0.1:8000/api/users/register/ THEY CAN <b>ONLY</b> DO POST REQUESTS. 
+
+Moreover, the `detail` is a boolean indicating if the current action is configured for a list or detail view. Generally, registration is done in a list view.
+
+Also, we are going to send a message as and object as well as a `Response` that will allow JSON to be sent to the client along with a status. Client-side servers need this to identify if the request was good. Especially React.js
+
+It will look like this:
+
+```py
+  @action(detail=False, methods=['POST'])
+  def register(self, request):
+    print(request.data)
+    message = {'message': "Register"}   
+    return Response(message, status=status.HTTP_200_OK)
+```
+
+#### Postman
+go to Postman, select `POST` request and go to `BODY` then `form-data` and insert the following:
+
+|      Key | Value     |
+
+| username | brock2    | 
+| password | password1 | 
+
+Hit send    
+
+Within the `request` argument of `register` method, is the body within our post request. so when we post to this endpoint, the request is this printed in the console:
+
+```
+<QueryDict: {'username': ['brock2'], 'password': ['password1']}>
+```
+
+We can now set up variables to pick out those elements within `request.data`. So, to extract the password and username, we will do:
+
+```py
+username = request.data['username']
+password = request.data['password']
+```
+
+As the first part of logic, we will see if this username already exists in the database. We will do this by creating a dummy valiable and seeing if it exists.
+
+```py
+search_username = User.objects.filter(username=username)
+```
+
+Now we see if it exists, and if it does, we want to send a message saying that it already exists
+
+```py
+if search_username:
+    message = {'message': "Username Already Exists"}
+    return Response(message, status=status.HTTP_200_OK)
+```
+
+so our function should look like this:
+```py
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    @action(detail=False, methods=['POST'])
+    def register(self, request):
+        print(request.data)
+
+        username = request.data['username']
+        password = request.data['password']       
+
+        search_username = User.objects.filter(username=username)
+
+        if search_username:
+            message = {'message': "Username Already Exists"}
+            return Response(message, status=status.HTTP_200_OK)
+
+```
+
+Now make a POST request in Postman with the username of your superuser or a user that exists in the database, it should send a json message as: 
+
+```json
+{
+    "message": "Username Already Exists"
+}
+```
+
+Before we get into the weeds, lets now create and register a new user. So based on username and password, we will create the user by: 
+
+1. Create a new user instance with username and password we extracted from the post response
+2. Serialize the user object so it can be sent as json and specify that its only one object
+3. Create a new token for the new user and will be sent to the client
+4. Create a response that sends a message, the user data, and the unique token of the user
+5. Return a Reponse with the data and an HTTP status
+
+```py
+user = User.objects.create_user(username=username, password=password)
+serializer = UserSerializer(user, many=False)
+token = Token.objects.create(user=user)
+message = {'message': "User Created",
+            'user': serializer.data, 'token': token.key}
+return Response(message, status=status.HTTP_200_OK)
+
+```
+
+WHOLE METHOD:
+```py
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    @action(detail=False, methods=['POST'])
+    def register(self, request):
+        print(request.data)
+
+        username = request.data['username']
+        password = request.data['password']       
+
+        search_username = User.objects.filter(username=username)
+
+        if search_username:
+            message = {'message': "Username Already Exists"}
+            return Response(message, status=status.HTTP_200_OK)
+
+        user = User.objects.create_user(username=username, password=password)
+        serializer = UserSerializer(user, many=False)
+        token = Token.objects.create(user=user)
+        message = {'message': "User Created",
+                   'user': serializer.data, 'token': token.key}
+        return Response(message, status=status.HTTP_200_OK)
+```
